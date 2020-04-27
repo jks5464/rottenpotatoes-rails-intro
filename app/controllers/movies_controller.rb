@@ -1,5 +1,5 @@
 class MoviesController < ApplicationController
-
+  
   def movie_params
     params.require(:movie).permit(:title, :rating, :description, :release_date)
   end
@@ -11,7 +11,20 @@ class MoviesController < ApplicationController
   end
 
   def index
-    @movies = Movie.all
+    
+    session[:sort] = get_sort_state
+    session[:filter] = get_filter_state
+
+    if params[:sort].nil? or params[:filter].nil?
+      params[:ratings] = @filter
+      params[:sort] = @sort
+      redirect_to movies_path(sort: @sort, filter: @filter)
+      return
+    end
+    
+    @movies = Movie.where("rating IN (?)", @filter)
+    @movies = @movies.order(@sort) unless @sort.nil? or @sort=='unsorted'
+
   end
 
   def new
@@ -41,5 +54,27 @@ class MoviesController < ApplicationController
     flash[:notice] = "Movie '#{@movie.title}' deleted."
     redirect_to movies_path
   end
-
+  
+  def initialize
+    super
+    @all_ratings = ['G','PG','PG-13','R','NC-17'].map{|r| r}
+  end
+  
+  def get_sort_state
+    @sort = params[:sort]
+    if params[:sort].nil?
+      @sort =  (session[:sort].nil?) ? :unsorted : session[:sort]
+    end
+    @sort
+  end
+  
+  def get_filter_state
+    @filter = session[:filter]
+    if params[:commit] == 'Refresh'
+      @filter = params[:ratings].keys unless params[:ratings].nil?
+    end
+    @filter = @all_ratings if @filter.nil?
+    @filter
+  end
+  
 end
